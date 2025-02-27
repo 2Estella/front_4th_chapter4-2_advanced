@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 interface UseIntersectionObserverProps {
   onIntersect: () => void;
@@ -6,6 +6,7 @@ interface UseIntersectionObserverProps {
   rootMargin?: string;
   threshold?: number;
   enabled?: boolean;
+  hasNextPage?: boolean;
 }
 
 /**
@@ -15,44 +16,39 @@ interface UseIntersectionObserverProps {
  * @param rootMargin - 루트 요소의 마진
  * @param threshold - observer가 탐지될 때의 임계값
  * @param enabled - observer가 활성화되는지 여부
+ * @param hasNextPage - 다음 페이지 존재 여부
  * @returns
  */
 export const useIntersectionObserver = ({
   onIntersect,
   root = null,
-  rootMargin = '0px',
-  threshold = 0,
+  rootMargin = '100px',
+  threshold = 0.1,
   enabled = true,
+  hasNextPage = true,
 }: UseIntersectionObserverProps) => {
-  const targetRef = useRef<HTMLDivElement | null>(null);
+  const targetRef = useRef<HTMLElement | null>(null);
+
+  const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
+    const [entry] = entries;
+    if (entry.isIntersecting && enabled && hasNextPage) {
+      onIntersect();
+    }
+  }, [onIntersect, enabled, hasNextPage]);
 
   useEffect(() => {
-    if (!enabled) return;
+    const target = targetRef.current;
+    if (!enabled || !hasNextPage || !target) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          onIntersect();
-        }
-      },
-      {
-        root,
-        rootMargin,
-        threshold,
-      }
-    );
+    const observer = new IntersectionObserver(handleIntersect, {
+      root,
+      rootMargin,
+      threshold,
+    });
 
-    const currentTarget = targetRef.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [enabled, root, rootMargin, threshold, onIntersect]);
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [enabled, hasNextPage, root, rootMargin, threshold, handleIntersect]);
 
   return targetRef;
 };

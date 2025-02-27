@@ -14,7 +14,7 @@ import {
 } from '@chakra-ui/react';
 import { useDndContext, useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { ComponentProps, Fragment } from 'react';
+import { ComponentProps, Fragment, memo, useMemo } from 'react';
 
 import { CellSize, DAY_LABELS, 분 } from './constants';
 import { Schedule } from './types';
@@ -39,31 +39,37 @@ const TIMES = [
     .map((v) => `${parseHnM(v)}~${parseHnM(v + 50 * 분)}`),
 ] as const;
 
-const ScheduleTable = ({ tableId, schedules, onScheduleTimeClick, onDeleteButtonClick }: Props) => {
-  const getColor = (lectureId: string): string => {
-    const lectures = [...new Set(schedules.map(({ lecture }) => lecture.id))];
-    const colors = ['#fdd', '#ffd', '#dff', '#ddf', '#fdf', '#dfd'];
-    return colors[lectures.indexOf(lectureId) % colors.length];
-  };
+// 드래그 상태를 감지하는 래퍼 컴포넌트
+const DragStateWrapper = memo(({ tableId, children }: { tableId: string; children: React.ReactNode }) => {
+  const { active } = useDndContext();
 
-  const dndContext = useDndContext();
-
-  const getActiveTableId = () => {
-    const activeId = dndContext.active?.id;
-    if (activeId) {
-      return String(activeId).split(':')[0];
-    }
-    return null;
-  };
-
-  const activeTableId = getActiveTableId();
+  const isActive = active?.id ? String(active.id).split(':')[0] === tableId : false;
 
   return (
     <Box
       position='relative'
-      outline={activeTableId === tableId ? '5px dashed' : undefined}
+      outline={isActive ? '5px dashed' : undefined}
       outlineColor='blue.300'
     >
+      {children}
+    </Box>
+  );
+});
+
+const ScheduleTable = memo(({
+  tableId,
+  schedules,
+  onScheduleTimeClick,
+  onDeleteButtonClick
+}: Props) => {
+  const getColor = useMemo(() => {
+    const lectureIds = [...new Set(schedules.map(({ lecture }) => lecture.id))];
+    const colors = ['#fdd', '#ffd', '#dff', '#ddf', '#fdf', '#dfd'];
+    return (lectureId: string) => colors[lectureIds.indexOf(lectureId) % colors.length];
+  }, [schedules]);
+
+  return (
+    <DragStateWrapper tableId={tableId}>
       <Grid
         templateColumns={`120px repeat(${DAY_LABELS.length}, ${CellSize.WIDTH}px)`}
         templateRows={`40px repeat(${TIMES.length}, ${CellSize.HEIGHT}px)`}
@@ -115,7 +121,7 @@ const ScheduleTable = ({ tableId, schedules, onScheduleTimeClick, onDeleteButton
 
       {schedules.map((schedule, index) => (
         <DraggableSchedule
-          key={`${schedule.lecture.title}-${index}`}
+          key={`${schedule.lecture.id}-${index}`}
           id={`${tableId}:${index}`}
           data={schedule}
           bg={getColor(schedule.lecture.id)}
@@ -127,20 +133,23 @@ const ScheduleTable = ({ tableId, schedules, onScheduleTimeClick, onDeleteButton
           }
         />
       ))}
-    </Box>
+    </DragStateWrapper>
   );
-};
+});
 
-const DraggableSchedule = ({
+const DraggableSchedule = memo(({
   id,
   data,
   bg,
   onDeleteButtonClick,
-}: { id: string; data: Schedule } & ComponentProps<typeof Box> & {
-    onDeleteButtonClick: () => void;
-  }) => {
+}: {
+  id: string;
+  data: Schedule;
+} & ComponentProps<typeof Box> & {
+  onDeleteButtonClick: () => void;
+}) => {
   const { day, range, room, lecture } = data;
-  const { attributes, setNodeRef, listeners, transform } = useDraggable({ id });
+  const { attributes, setNodeRef, listeners, transform, isDragging } = useDraggable({ id });
   const leftIndex = DAY_LABELS.indexOf(day as (typeof DAY_LABELS)[number]);
   const topIndex = range[0] - 1;
   const size = range.length;
@@ -160,6 +169,7 @@ const DraggableSchedule = ({
           cursor='pointer'
           ref={setNodeRef}
           transform={CSS.Translate.toString(transform)}
+          zIndex={isDragging ? 1000 : 1}
           {...listeners}
           {...attributes}
         >
@@ -181,6 +191,6 @@ const DraggableSchedule = ({
       </PopoverContent>
     </Popover>
   );
-};
+});
 
 export default ScheduleTable;

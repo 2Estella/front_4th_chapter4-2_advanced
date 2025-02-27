@@ -10,7 +10,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import axios from 'axios';
-import { useEffect, useRef, useState, useMemo, useCallback, memo } from 'react';
+import { useEffect, useRef, useState, useCallback, memo } from 'react';
 
 import SearchFilters from './components/SearchFilters';
 import SearchResults from './components/SearchResults';
@@ -29,12 +29,10 @@ interface Props {
   onClose: () => void;
 }
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 20;
 
 // API 호출 함수
 const fetchMajors = () => axios.get<Lecture[]>('/schedules-majors.json');
-
-// 문학 학점 호출 함수
 const fetchLiberalArts = () => axios.get<Lecture[]>('/schedules-liberal-arts.json');
 
 /**
@@ -46,6 +44,7 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   // 무한 스크롤을 위한 refs
   const loaderWrapperRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
+  const workerRef = useRef<Worker | null>(null);
 
   // 상태 관리
   const [lectures, setLectures] = useState<Lecture[]>([]);
@@ -60,103 +59,90 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   });
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentItems, setCurrentItems] = useState<Lecture[]>([]);
 
   // 검색어 디바운스 처리
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // 검색어 필터링
-  const filterByQuery = useCallback((items: Lecture[], query: string) => {
-    if (!query) return items;
-    const loweredQuery = query.toLowerCase();
-    return items.filter(
-      (lecture) =>
-        lecture.title.toLowerCase().includes(loweredQuery) ||
-        lecture.id.toLowerCase().includes(loweredQuery),
+  // 워커 초기화
+  useEffect(() => {
+    workerRef.current = new Worker(new URL('./workers/filter.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+
+    const handleMessage = (e: MessageEvent) => {
+      const { items, total } = e.data;
+      setCurrentItems(items);
+      setTotalCount(total);
+    };
+
+    workerRef.current.addEventListener('message', handleMessage);
+
+    return () => {
+      workerRef.current?.removeEventListener('message', handleMessage);
+      workerRef.current?.terminate();
+    };
+  }, []);
+
+  // 무한 스크롤 처리를 위한 observer 설정
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // 마지막 요소가 화면에 보이고, 더 불러올 데이터가 있을 때
+        if (entries[0].isIntersecting && currentItems.length < totalCount) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { threshold: 0.1 },
     );
-  }, []);
 
-  // 학점 필터링
-  const filterByGrades = useCallback((items: Lecture[], grades: number[]) => {
-    if (grades.length === 0) return items;
-    return items.filter((lecture) => grades.includes(lecture.grade));
-  }, []);
+    const loader = loaderRef.current;
+    if (loader) {
+      observer.observe(loader);
+    }
 
-  // 전공 필터링
-  const filterByMajors = useCallback((items: Lecture[], majors: string[]) => {
-    if (majors.length === 0) return items;
-    return items.filter((lecture) => majors.includes(lecture.major));
-  }, []);
+    return () => {
+      if (loader) {
+        observer.unobserve(loader);
+      }
+    };
+  }, [currentItems.length, totalCount]);
 
-  // 학점 필터링
-  const filterByCredits = useCallback(
-    (items: Lecture[], credits: number) =>
-      items.filter((lecture) => lecture.credits.startsWith(String(credits))),
-    [],
-  );
+  // 필터링 및 페이지네이션 처리
+  useEffect(() => {
+    if (!workerRef.current) return;
 
-  // 요일 필터링
-  const filterByDays = useCallback(
-    (items: Lecture[], days: string[]) =>
-      items.filter((lecture) => {
-        const schedules = lecture.schedule ? parseSchedule(lecture.schedule) : [];
-        return schedules.some((s) => days.includes(s.day));
-      }),
-    [],
-  );
+    // 검색 조건이 변경되면 페이지를 1로 리셋
+    if (page === 1) {
+      setCurrentItems([]); // 기존 결과 초기화
+    }
 
-  // 시간 필터링
-  const filterByTimes = useCallback(
-    (items: Lecture[], times: number[]) =>
-      items.filter((lecture) => {
-        const schedules = lecture.schedule ? parseSchedule(lecture.schedule) : [];
-        return schedules.some((s) => s.range.some((time) => times.includes(time)));
-      }),
-    [],
-  );
+    workerRef.current.postMessage({
+      lectures,
+      searchOptions,
+      page,
+      pageSize: PAGE_SIZE,
+    });
 
-  // 필터링된 강의 목록 - 검색 조건이 변경될 때만 재계산
-  const filteredLectures = useMemo(() => {
-    let result = lectures;
-    const { query = '', credits, grades, days, times, majors } = searchOptions;
+    const handleMessage = (e: MessageEvent) => {
+      const { items, total } = e.data;
+      setCurrentItems((prev) => [...prev, ...items]); // 기존 결과에 새로운 결과 추가
+      setTotalCount(total);
+    };
 
-    result = filterByQuery(result, query);
-    result = filterByGrades(result, grades);
-    result = filterByMajors(result, majors);
-    if (credits) result = filterByCredits(result, credits);
-    if (days.length) result = filterByDays(result, days);
-    if (times.length) result = filterByTimes(result, times);
-
-    return result;
-  }, [
-    lectures,
-    searchOptions,
-    filterByQuery,
-    filterByGrades,
-    filterByMajors,
-    filterByCredits,
-    filterByDays,
-    filterByTimes,
-  ]);
-
-  const lastPage = Math.ceil(filteredLectures.length / PAGE_SIZE);
-
-  // 현재 페이지에 보여질 강의 목록
-  const visibleLectures = useMemo(
-    () => filteredLectures.slice(0, page * PAGE_SIZE),
-    [filteredLectures, page],
-  );
+    workerRef.current.addEventListener('message', handleMessage);
+    return () => workerRef.current?.removeEventListener('message', handleMessage);
+  }, [lectures, searchOptions, page]);
 
   // 전체 전공 목록
-  const allMajors = useMemo(
-    () => [...new Set(lectures.map((lecture) => lecture.major))],
-    [lectures],
-  );
+  const allMajors = [...new Set(lectures.map((lecture) => lecture.major))];
+
   // 검색 옵션 변경 핸들러
   const handleChangeOption = useCallback(
     <T extends keyof SearchOption>(field: T, value: SearchOption[T]) => {
-      setPage(1); // 옵션 변경 시 첫 페이지로 리셋
-      setSearchOptions((prev: SearchOption) => ({ ...prev, [field]: value }));
-      loaderWrapperRef.current?.scrollTo(0, 0);
+      setPage(1); // 페이지 리셋
+      setSearchOptions((prev) => ({ ...prev, [field]: value }));
     },
     [],
   );
@@ -211,32 +197,9 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
     fetchData();
   }, []);
 
-  // 무한 스크롤 설정
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries: IntersectionObserverEntry[]) => {
-        if (entries[0].isIntersecting && page < lastPage) {
-          setPage((prev: number) => prev + 1);
-        }
-      },
-      { threshold: 0.1, root: loaderWrapperRef.current },
-    );
-
-    const currentLoader = loaderRef.current;
-    if (currentLoader) {
-      observer.observe(currentLoader);
-    }
-
-    return () => {
-      if (currentLoader) {
-        observer.unobserve(currentLoader);
-      }
-    };
-  }, [page, lastPage]);
-
   // searchInfo 변경 시 필터 초기화
   useEffect(() => {
-    setSearchOptions((prev: SearchOption) => ({
+    setSearchOptions((prev) => ({
       ...prev,
       days: searchInfo?.day ? [searchInfo.day] : [],
       times: searchInfo?.time ? [searchInfo.time] : [],
@@ -257,10 +220,26 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
               allMajors={allMajors}
               onChangeOption={handleChangeOption}
             />
-            <Text align='right'>검색결과: {filteredLectures.length}개</Text>
-            <Box ref={loaderWrapperRef} overflowY='auto' maxH='500px'>
-              <SearchResults lectures={visibleLectures} onAddSchedule={handleAddSchedule} />
-              <Box ref={loaderRef} h='20px' />
+            <Text align='right'>검색결과: {totalCount}개</Text>
+            <Box
+              ref={loaderWrapperRef}
+              overflowY='auto'
+              maxH='500px'
+              css={{
+                '&::-webkit-scrollbar': {
+                  width: '8px',
+                },
+                '&::-webkit-scrollbar-track': {
+                  background: '#f1f1f1',
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: '#888',
+                  borderRadius: '4px',
+                },
+              }}
+            >
+              <SearchResults lectures={currentItems} onAddSchedule={handleAddSchedule} />
+              {currentItems.length < totalCount && <Box ref={loaderRef} h='20px' />}
             </Box>
           </VStack>
         </ModalBody>

@@ -43,7 +43,7 @@ export interface SearchInfo {
 export interface SearchFilterProps {
   searchOptions: SearchOption;
   allMajors: string[];
-  onChangeOption: (field: keyof SearchOption, value: string[]) => void;
+  onChangeOption: (field: keyof SearchOption, value: string[] | number[]) => void;
 }
 
 // 검색 결과 Props 타입

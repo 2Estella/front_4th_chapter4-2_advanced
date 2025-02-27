@@ -21,32 +21,30 @@ export const ScheduleProvider = ({ children }: PropsWithChildren) => {
   const [scheduleIds, setScheduleIds] = useState<string[]>(Object.keys(dummyScheduleMap));
 
   const addSchedule = useCallback((id: string, newSchedules: Schedule[]) => {
-    setSchedules(prev => ({
+    setSchedules((prev) => ({
       ...prev,
-      [id]: newSchedules
+      [id]: newSchedules,
     }));
-    setScheduleIds(prev => [...prev, id]);
+    setScheduleIds((prev) => [...prev, id]);
   }, []);
 
   const removeSchedule = useCallback((id: string) => {
-    setSchedules(prev => {
+    setSchedules((prev) => {
       const next = { ...prev };
       delete next[id];
       return next;
     });
-    setScheduleIds(prev => prev.filter(scheduleId => scheduleId !== id));
+    setScheduleIds((prev) => prev.filter((scheduleId) => scheduleId !== id));
   }, []);
 
   const updateSchedule = useCallback((id: string, newSchedules: Schedule[]) => {
-    setSchedules(prev => ({
+    setSchedules((prev) => ({
       ...prev,
-      [id]: newSchedules
+      [id]: newSchedules,
     }));
   }, []);
 
-  const getSchedule = useCallback((id: string) => {
-    return schedules[id] || [];
-  }, [schedules]);
+  const getSchedule = useCallback((id: string) => schedules[id] || [], [schedules]);
 
   return (
     <ScheduleContext.Provider
@@ -57,7 +55,7 @@ export const ScheduleProvider = ({ children }: PropsWithChildren) => {
         addSchedule,
         removeSchedule,
         updateSchedule,
-        getSchedule
+        getSchedule,
       }}
     >
       {children}

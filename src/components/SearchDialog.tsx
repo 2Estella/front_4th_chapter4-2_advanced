@@ -11,13 +11,13 @@ import {
 } from '@chakra-ui/react';
 import axios from 'axios';
 import { useEffect, useRef, useState, useCallback, memo, LegacyRef } from 'react';
-import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 import SearchFilters from './SearchFilters';
 import SearchResults from './SearchResults';
 import useDebounce from '../hooks/useDebounce';
-import { useScheduleContext } from './Schedule/ScheduleContext';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { parseSchedule } from '../utils';
+import { useScheduleContext } from './Schedule/ScheduleContext';
 
 import { Lecture, SearchOption } from '@/types';
 
@@ -46,7 +46,7 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   // 상태 관리
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, _setSearchQuery] = useState('');
   const [searchOptions, setSearchOptions] = useState<SearchOption>({
     query: '',
     grades: [],
@@ -54,8 +54,8 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
     times: [],
     majors: [],
   });
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_error, setError] = useState<Error | null>(null);
+  const [_isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentItems, setCurrentItems] = useState<Lecture[]>([]);
 
@@ -69,7 +69,7 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
     if (isLoadingMore || currentItems.length >= totalCount) return;
 
     setIsLoadingMore(true);
-    setPage(prev => prev + 1);
+    setPage((prev) => prev + 1);
   }, [isLoadingMore, currentItems.length, totalCount]);
 
   // 워커 초기화
@@ -98,7 +98,7 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
 
     const handleMessage = (e: MessageEvent) => {
       const { items, total } = e.data;
-      setCurrentItems(prev => [...prev, ...items]); // 기존 아이템 유지하면서 새 아이템 추가
+      setCurrentItems((prev) => [...prev, ...items]); // 기존 아이템 유지하면서 새 아이템 추가
       setTotalCount(total);
       setIsLoadingMore(false);
     };
@@ -243,9 +243,7 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
               }}
             >
               <SearchResults lectures={currentItems} onAddSchedule={handleAddSchedule} />
-              {hasNextPage && (
-                <Box ref={loaderRef as LegacyRef<HTMLDivElement>} h='100px' />
-              )}
+              {hasNextPage && <Box ref={loaderRef as LegacyRef<HTMLDivElement>} h='100px' />}
             </Box>
           </VStack>
         </ModalBody>

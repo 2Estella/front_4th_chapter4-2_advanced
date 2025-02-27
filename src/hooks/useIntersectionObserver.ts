@@ -29,12 +29,15 @@ export const useIntersectionObserver = ({
 }: UseIntersectionObserverProps) => {
   const targetRef = useRef<HTMLElement | null>(null);
 
-  const handleIntersect = useCallback((entries: IntersectionObserverEntry[]) => {
-    const [entry] = entries;
-    if (entry.isIntersecting && enabled && hasNextPage) {
-      onIntersect();
-    }
-  }, [onIntersect, enabled, hasNextPage]);
+  const handleIntersect = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [entry] = entries;
+      if (entry.isIntersecting && enabled && hasNextPage) {
+        onIntersect();
+      }
+    },
+    [onIntersect, enabled, hasNextPage],
+  );
 
   useEffect(() => {
     const target = targetRef.current;

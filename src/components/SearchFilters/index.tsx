@@ -5,7 +5,8 @@ import DaySection from './DaySection';
 import GradeSection from './GradeSection';
 import MajorSection from './MajorSection';
 import TimeSection from './TimeSection';
-import type { SearchFilterProps } from '../../types/search';
+
+import type { SearchFilterProps } from '@/types';
 
 /**
  * 검색 필터 컴포넌트
@@ -18,7 +19,7 @@ const SearchFilters = memo(({ searchOptions, allMajors, onChangeOption }: Search
         <Input
           placeholder='과목명 또는 과목코드'
           value={searchOptions.query}
-          onChange={(e) => onChangeOption('query', e.target.value)}
+          onChange={(e) => onChangeOption('query', [e.target.value])}
         />
       </FormControl>
 
@@ -26,7 +27,7 @@ const SearchFilters = memo(({ searchOptions, allMajors, onChangeOption }: Search
         <FormLabel>학점</FormLabel>
         <Select
           value={searchOptions.credits}
-          onChange={(e) => onChangeOption('credits', e.target.value)}
+          onChange={(e) => onChangeOption('credits', [e.target.value])}
         >
           <option value=''>전체</option>
           <option value='1'>1학점</option>
@@ -40,7 +41,7 @@ const SearchFilters = memo(({ searchOptions, allMajors, onChangeOption }: Search
       <Box w='50%'>
         <GradeSection
           selectedGrades={searchOptions.grades}
-          onChange={(values) => onChangeOption('grades', values)}
+          onChange={(values: number[]) => onChangeOption('grades', values)}
         />
       </Box>
       <Box w='50%'>
@@ -55,7 +56,7 @@ const SearchFilters = memo(({ searchOptions, allMajors, onChangeOption }: Search
       <Box w='50%'>
         <TimeSection
           selectedTimes={searchOptions.times}
-          onChange={(values) => onChangeOption('times', values)}
+          onChange={(values: number[]) => onChangeOption('times', values)}
         />
       </Box>
       <Box w='50%'>

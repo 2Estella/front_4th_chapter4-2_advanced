@@ -10,7 +10,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import axios from 'axios';
-import { useEffect, useRef, useState, useCallback, memo, LegacyRef } from 'react';
+import { useEffect, useRef, useState, useCallback, memo, LegacyRef, useMemo } from 'react';
 
 import SearchFilters from './SearchFilters';
 import SearchResults from './SearchResults';
@@ -93,21 +93,24 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   }, []);
 
   // 워커 메시지 처리 개선
+  const handleWorkerMessage = useCallback((e: MessageEvent) => {
+    const { items, total } = e.data;
+    setCurrentItems((prev) => [...prev, ...items]);
+    setTotalCount(total);
+    setIsLoadingMore(false);
+  }, []);
+
   useEffect(() => {
     if (!workerRef.current) return;
 
-    const handleMessage = (e: MessageEvent) => {
-      const { items, total } = e.data;
-      setCurrentItems((prev) => [...prev, ...items]); // 기존 아이템 유지하면서 새 아이템 추가
-      setTotalCount(total);
-      setIsLoadingMore(false);
-    };
+    workerRef.current.addEventListener('message', handleWorkerMessage);
+    return () => workerRef.current?.removeEventListener('message', handleWorkerMessage);
+  }, [handleWorkerMessage]);
 
-    workerRef.current.addEventListener('message', handleMessage);
-    return () => workerRef.current?.removeEventListener('message', handleMessage);
-  }, []);
-
-  const hasNextPage = currentItems.length < totalCount;
+  const hasNextPage = useMemo(
+    () => currentItems.length < totalCount,
+    [currentItems.length, totalCount],
+  );
 
   // 무한 스크롤 처리를 위한 observer 설정
   const loaderRef = useIntersectionObserver({
@@ -144,12 +147,15 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   }, [lectures, searchOptions, page]);
 
   // 전체 전공 목록
-  const allMajors = [...new Set(lectures.map((lecture) => lecture.major))];
+  const allMajors = useMemo(
+    () => [...new Set(lectures.map((lecture) => lecture.major))],
+    [lectures],
+  );
 
   // 검색 옵션 변경 핸들러
   const handleChangeOption = useCallback(
     <T extends keyof SearchOption>(field: T, value: SearchOption[T]) => {
-      setPage(1); // 페이지 리셋
+      setPage(1);
       setSearchOptions((prev) => ({ ...prev, [field]: value }));
     },
     [],
@@ -215,6 +221,12 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
     setPage(1);
   }, [searchInfo]);
 
+  // 메모이제이션된 SearchResults 컴포넌트
+  const MemoizedSearchResults = useMemo(
+    () => <SearchResults lectures={currentItems} onAddSchedule={handleAddSchedule} />,
+    [currentItems, handleAddSchedule],
+  );
+
   return (
     <Modal isOpen={Boolean(searchInfo)} onClose={onClose} size='6xl'>
       <ModalOverlay />
@@ -239,10 +251,10 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
                   background: '#888',
                   borderRadius: '4px',
                 },
-                scrollBehavior: 'smooth', // 스크롤 동작을 부드럽게
+                scrollBehavior: 'smooth',
               }}
             >
-              <SearchResults lectures={currentItems} onAddSchedule={handleAddSchedule} />
+              {MemoizedSearchResults}
               {hasNextPage && <Box ref={loaderRef as LegacyRef<HTMLDivElement>} h='100px' />}
             </Box>
           </VStack>

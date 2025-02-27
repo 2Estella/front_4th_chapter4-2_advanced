@@ -1,4 +1,11 @@
-import { createContext, PropsWithChildren, useContext, useState, useCallback } from 'react';
+import {
+  createContext,
+  PropsWithChildren,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+} from 'react';
 
 import dummyScheduleMap from '../../mocks/data/dummyScheduleMap';
 import { Schedule } from '../../types';
@@ -20,6 +27,7 @@ export const ScheduleProvider = ({ children }: PropsWithChildren) => {
   const [schedules, setSchedules] = useState<Record<string, Schedule[]>>(dummyScheduleMap);
   const [scheduleIds, setScheduleIds] = useState<string[]>(Object.keys(dummyScheduleMap));
 
+  // 메모이제이션된 핸들러들
   const addSchedule = useCallback((id: string, newSchedules: Schedule[]) => {
     setSchedules((prev) => ({
       ...prev,
@@ -46,21 +54,21 @@ export const ScheduleProvider = ({ children }: PropsWithChildren) => {
 
   const getSchedule = useCallback((id: string) => schedules[id] || [], [schedules]);
 
-  return (
-    <ScheduleContext.Provider
-      value={{
-        scheduleIds,
-        schedulesMap: schedules,
-        setSchedulesMap: setSchedules,
-        addSchedule,
-        removeSchedule,
-        updateSchedule,
-        getSchedule,
-      }}
-    >
-      {children}
-    </ScheduleContext.Provider>
+  // context value 메모이제이션
+  const contextValue = useMemo(
+    () => ({
+      scheduleIds,
+      schedulesMap: schedules,
+      setSchedulesMap: setSchedules,
+      addSchedule,
+      removeSchedule,
+      updateSchedule,
+      getSchedule,
+    }),
+    [scheduleIds, schedules, addSchedule, removeSchedule, updateSchedule, getSchedule],
   );
+
+  return <ScheduleContext.Provider value={contextValue}>{children}</ScheduleContext.Provider>;
 };
 
 // 커스텀 훅

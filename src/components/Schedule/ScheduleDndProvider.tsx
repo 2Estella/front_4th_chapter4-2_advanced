@@ -1,7 +1,7 @@
 import { DndContext, Modifier, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { PropsWithChildren } from 'react';
 
-import { CellSize, DAY_LABELS } from './constants';
+import { CellSize, DAY_LABELS } from '../../constants';
 import { useScheduleContext } from './ScheduleContext';
 
 function createSnapModifier(): Modifier {
@@ -41,7 +41,6 @@ export default function ScheduleDndProvider({ children }: PropsWithChildren) {
     }),
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleDragEnd = (event: any) => {
     const { active, delta } = event;
     const { x, y } = delta;

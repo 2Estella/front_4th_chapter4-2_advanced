@@ -16,9 +16,9 @@ import { useDndContext, useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { ComponentProps, Fragment, memo, useMemo } from 'react';
 
-import { CellSize, DAY_LABELS, 분 } from './constants';
-import { Schedule } from './types';
-import { fill2, parseHnM } from './utils';
+import { CellSize, DAY_LABELS, 분 } from '../../constants';
+import { Schedule } from '../../types';
+import { fill2, parseHnM } from '../../utils';
 
 interface Props {
   tableId: string;

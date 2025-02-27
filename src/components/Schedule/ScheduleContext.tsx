@@ -1,7 +1,7 @@
 import { createContext, PropsWithChildren, useContext, useState, useCallback } from 'react';
 
-import dummyScheduleMap from './dummyScheduleMap';
-import { Schedule } from './types';
+import dummyScheduleMap from '../../mocks/data/dummyScheduleMap';
+import { Schedule } from '../../types';
 
 // 개별 시간표 컨텍스트
 interface ScheduleContextType {

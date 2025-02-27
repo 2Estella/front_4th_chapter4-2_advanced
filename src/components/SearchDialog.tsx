@@ -10,13 +10,14 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import axios from 'axios';
-import { useEffect, useRef, useState, useCallback, memo } from 'react';
+import { useEffect, useRef, useState, useCallback, memo, LegacyRef } from 'react';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
-import SearchFilters from './components/SearchFilters';
-import SearchResults from './components/SearchResults';
-import useDebounce from './hooks/useDebounce';
-import { useScheduleContext } from './ScheduleContext';
-import { parseSchedule } from './utils';
+import SearchFilters from './SearchFilters';
+import SearchResults from './SearchResults';
+import useDebounce from '../hooks/useDebounce';
+import { useScheduleContext } from './Schedule/ScheduleContext';
+import { parseSchedule } from '../utils';
 
 import { Lecture, SearchOption } from '@/types';
 
@@ -40,10 +41,6 @@ const fetchLiberalArts = () => axios.get<Lecture[]>('/schedules-liberal-arts.jso
  */
 const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   const { setSchedulesMap } = useScheduleContext();
-
-  // 무한 스크롤을 위한 refs
-  const loaderWrapperRef = useRef<HTMLDivElement>(null);
-  const loaderRef = useRef<HTMLDivElement>(null);
   const workerRef = useRef<Worker | null>(null);
 
   // 상태 관리
@@ -65,9 +62,19 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   // 검색어 디바운스 처리
   const debouncedQuery = useDebounce(searchQuery, 300);
 
+  // 페이지 상태 관리 개선
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || currentItems.length >= totalCount) return;
+
+    setIsLoadingMore(true);
+    setPage(prev => prev + 1);
+  }, [isLoadingMore, currentItems.length, totalCount]);
+
   // 워커 초기화
   useEffect(() => {
-    workerRef.current = new Worker(new URL('./workers/filter.worker.ts', import.meta.url), {
+    workerRef.current = new Worker(new URL('../workers/filter.worker.ts', import.meta.url), {
       type: 'module',
     });
 
@@ -85,29 +92,30 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
     };
   }, []);
 
-  // 무한 스크롤 처리를 위한 observer 설정
+  // 워커 메시지 처리 개선
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // 마지막 요소가 화면에 보이고, 더 불러올 데이터가 있을 때
-        if (entries[0].isIntersecting && currentItems.length < totalCount) {
-          setPage((prev) => prev + 1);
-        }
-      },
-      { threshold: 0.1 },
-    );
+    if (!workerRef.current) return;
 
-    const loader = loaderRef.current;
-    if (loader) {
-      observer.observe(loader);
-    }
-
-    return () => {
-      if (loader) {
-        observer.unobserve(loader);
-      }
+    const handleMessage = (e: MessageEvent) => {
+      const { items, total } = e.data;
+      setCurrentItems(prev => [...prev, ...items]); // 기존 아이템 유지하면서 새 아이템 추가
+      setTotalCount(total);
+      setIsLoadingMore(false);
     };
-  }, [currentItems.length, totalCount]);
+
+    workerRef.current.addEventListener('message', handleMessage);
+    return () => workerRef.current?.removeEventListener('message', handleMessage);
+  }, []);
+
+  const hasNextPage = currentItems.length < totalCount;
+
+  // 무한 스크롤 처리를 위한 observer 설정
+  const loaderRef = useIntersectionObserver({
+    onIntersect: loadMore,
+    enabled: !isLoadingMore,
+    hasNextPage,
+    rootMargin: '200px',
+  });
 
   // 필터링 및 페이지네이션 처리
   useEffect(() => {
@@ -222,24 +230,22 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
             />
             <Text align='right'>검색결과: {totalCount}개</Text>
             <Box
-              ref={loaderWrapperRef}
               overflowY='auto'
               maxH='500px'
               css={{
-                '&::-webkit-scrollbar': {
-                  width: '8px',
-                },
-                '&::-webkit-scrollbar-track': {
-                  background: '#f1f1f1',
-                },
+                '&::-webkit-scrollbar': { width: '8px' },
+                '&::-webkit-scrollbar-track': { background: '#f1f1f1' },
                 '&::-webkit-scrollbar-thumb': {
                   background: '#888',
                   borderRadius: '4px',
                 },
+                scrollBehavior: 'smooth', // 스크롤 동작을 부드럽게
               }}
             >
               <SearchResults lectures={currentItems} onAddSchedule={handleAddSchedule} />
-              {currentItems.length < totalCount && <Box ref={loaderRef} h='20px' />}
+              {hasNextPage && (
+                <Box ref={loaderRef as LegacyRef<HTMLDivElement>} h='100px' />
+              )}
             </Box>
           </VStack>
         </ModalBody>

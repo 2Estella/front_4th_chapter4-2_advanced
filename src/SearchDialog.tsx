@@ -31,10 +31,10 @@ import {
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 
-import { DAY_LABELS } from './constants.ts';
-import { useScheduleContext } from './ScheduleContext.tsx';
-import { Lecture } from './types.ts';
-import { parseSchedule } from './utils.ts';
+import { DAY_LABELS } from './constants';
+import { useScheduleContext } from './ScheduleContext';
+import { Lecture } from './types';
+import { parseSchedule } from './utils';
 
 interface Props {
   searchInfo: {

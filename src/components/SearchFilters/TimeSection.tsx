@@ -1,4 +1,3 @@
-import { memo } from 'react';
 import {
   FormControl,
   FormLabel,
@@ -9,8 +8,9 @@ import {
   Tag,
   TagLabel,
   TagCloseButton,
-  Wrap
+  Wrap,
 } from '@chakra-ui/react';
+import { memo } from 'react';
 
 interface TimeSectionProps {
   selectedTimes: number[];
@@ -44,49 +44,46 @@ const TIME_SLOTS = [
   { id: 24, label: '22:35~23:25' },
 ];
 
-const TimeSection = memo(({ selectedTimes, onChange }: TimeSectionProps) => {
-  return (
-    <FormControl>
-      <FormLabel>시간</FormLabel>
-      <CheckboxGroup
-        colorScheme="green"
-        value={selectedTimes}
-        onChange={(values) => onChange(values.map(Number))}
-      >
-        <Wrap spacing={1} mb={2}>
-          {selectedTimes
-            .sort((a, b) => a - b)
-            .map((time) => (
-              <Tag key={time} size="sm" variant="outline" colorScheme="blue">
-                <TagLabel>{time}교시</TagLabel>
-                <TagCloseButton
-                  onClick={() =>
-                    onChange(selectedTimes.filter((v) => v !== time))
-                  }
-                />
-              </Tag>
-            ))}
-        </Wrap>
-        <Stack
-          spacing={2}
-          overflowY="auto"
-          h="100px"
-          border="1px solid"
-          borderColor="gray.200"
-          borderRadius={5}
-          p={2}
-        >
-          {TIME_SLOTS.map(({ id, label }) => (
-            <Box key={id}>
-              <Checkbox size="sm" value={id}>
-                {id}교시({label})
-              </Checkbox>
-            </Box>
+/**
+ * 시간 선택 섹션
+ */
+const TimeSection = memo(({ selectedTimes, onChange }: TimeSectionProps) => (
+  <FormControl>
+    <FormLabel>시간</FormLabel>
+    <CheckboxGroup
+      colorScheme='green'
+      value={selectedTimes}
+      onChange={(values) => onChange(values.map(Number))}
+    >
+      <Wrap spacing={1} mb={2}>
+        {selectedTimes
+          .sort((a, b) => a - b)
+          .map((time) => (
+            <Tag key={time} size='sm' variant='outline' colorScheme='blue'>
+              <TagLabel>{time}교시</TagLabel>
+              <TagCloseButton onClick={() => onChange(selectedTimes.filter((v) => v !== time))} />
+            </Tag>
           ))}
-        </Stack>
-      </CheckboxGroup>
-    </FormControl>
-  );
-});
+      </Wrap>
+      <Stack
+        spacing={2}
+        overflowY='auto'
+        h='100px'
+        border='1px solid'
+        borderColor='gray.200'
+        borderRadius={5}
+        p={2}
+      >
+        {TIME_SLOTS.map(({ id, label }) => (
+          <Box key={id}>
+            <Checkbox size='sm' value={id}>
+              {id}교시({label})
+            </Checkbox>
+          </Box>
+        ))}
+      </Stack>
+    </CheckboxGroup>
+  </FormControl>
+));
 
 export default TimeSection;

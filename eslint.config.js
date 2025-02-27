@@ -69,7 +69,7 @@ export default [
       'react/prop-types': 'off', // TypeScript 사용 시 prop-types 검사를 비활성화
       'react/react-in-jsx-scope': 'off', // React 17+에서는 필요 없음
       'react-hooks/rules-of-hooks': 'error', // 훅 사용 시 규칙 강제
-      'react-hooks/exhaustive-deps': 'warn', // useEffect 의존성 배열 검증
+      // 'react-hooks/exhaustive-deps': 'warn', // useEffect 의존성 배열 검증
 
       // TypeScript 관련 규칙
       '@typescript-eslint/no-explicit-any': 'warn', // any 사용 최소화
@@ -89,11 +89,11 @@ export default [
       eqeqeq: ['error', 'always'], // 항상 === 사용
       'no-console': ['warn', { allow: ['warn', 'error'] }], // console.log는 경고
       'no-debugger': 'warn', // 디버거 사용 경고
-      'no-unused-vars': 'warn', // TypeScript 규칙으로 대체
+      // 'no-unused-vars': 'warn', // TypeScript 규칙으로 대체
       'no-undef': 'off', // TypeScript 환경에서 처리
 
       // 브라우저 호환성 (Compat) 규칙
-      'compat/compat': 'warn', // 호환성 검사
+      // 'compat/compat': 'warn', // 호환성 검사
 
       // import 순서 규칙 추가
       'import/order': [

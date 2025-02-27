@@ -37,7 +37,6 @@ const fetchMajors = () => axios.get<Lecture[]>('/schedules-majors.json');
 // 문학 학점 호출 함수
 const fetchLiberalArts = () => axios.get<Lecture[]>('/schedules-liberal-arts.json');
 
-
 /**
  * 검색 모달 컴포넌트
  */
@@ -59,6 +58,8 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
     times: [],
     majors: [],
   });
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // 검색어 디바운스 처리
   const debouncedQuery = useDebounce(searchQuery, 300);
@@ -186,17 +187,25 @@ const SearchDialog = memo(({ searchInfo, onClose }: Props) => {
   // 초기 강의 데이터 로딩 - 세션 스토리지 캐싱 활용
   useEffect(() => {
     const fetchData = async () => {
-      const cachedData = sessionStorage.getItem('lectures');
-      if (cachedData) {
-        setLectures(JSON.parse(cachedData));
-        return;
+      setIsLoading(true);
+      try {
+        const cachedData = sessionStorage.getItem('lectures');
+        if (cachedData) {
+          setLectures(JSON.parse(cachedData));
+          return;
+        }
+
+        const [majors, liberalArts] = await Promise.all([fetchMajors(), fetchLiberalArts()]);
+
+        const data = [...majors.data, ...liberalArts.data];
+        sessionStorage.setItem('lectures', JSON.stringify(data));
+        setLectures(data);
+      } catch (error) {
+        console.error('강의 데이터 로딩 실패:', error);
+        setError(error as Error);
+      } finally {
+        setIsLoading(false);
       }
-
-      const [majors, liberalArts] = await Promise.all([fetchMajors(), fetchLiberalArts()]);
-
-      const data = [...majors.data, ...liberalArts.data];
-      sessionStorage.setItem('lectures', JSON.stringify(data));
-      setLectures(data);
     };
 
     fetchData();
